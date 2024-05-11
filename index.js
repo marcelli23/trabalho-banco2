@@ -1,57 +1,79 @@
-const { MongoClient, ServerApiVersion } = require("mongodb");
-const { v4: uuid } = require("uuid");
-const conectionString =
-  "mongodb+srv://matesmarcelli:wB2CBQAmWV2j9Ddc@cluster0.mm4r7eu.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-const createClient = () =>
-  new MongoClient(conectionString, {
-    serverApi: {
-      version: ServerApiVersion.v1,
-      strict: true,
-      deprecationErrors: true,
-    },
-  });
+const readlineSync = require("readline-sync");
+const { createConnection } = require("./adapter");
 
-async function insert({ titulo, template }) {
-  const client = createClient();
-  try {
-    console.log("inicio da inserção");
-    await client.connect();
-    const database = client.db("Banco02");
-    const collection = database.collection("trabalhoFinal");
-    await collection.insertOne({
-      id: uuid(),
-      titulo,
-      template,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-  } finally {
-    await client.close();
-    console.log("final da inserção");
+function validateDB(db) {
+  switch (db) {
+    case "mongodb":
+      return true;
+    default:
+      return false;
   }
 }
 
-async function select(id) {
-  const client = createClient();
-  try {
-    console.log("inicio da consulta");
-    await client.connect();
-    const database = client.db("Banco02");
-    const collection = database.collection("trabalhoFinal");
-    return await collection.findOne({
-      id,
-    });
-  } finally {
-    await client.close();
-    console.log("final da consulta");
+async function callOperation(db, operacao) {
+  let id = "";
+  let titulo = "";
+  let template = "";
+  const connection = createConnection(db);
+
+  switch (operacao) {
+    case "insert":
+      titulo = readlineSync.question("Digite o titulo a ser inserido: \n");
+      template = readlineSync.question("Digite o template a ser inserido: \n");
+
+      await connection.insert({ titulo, template });
+      break;
+
+    case "select":
+      id = readlineSync.question("Digite o id do documento: \n");
+
+      await connection.select(id);
+      break;
+
+    case "selectAll":
+      await connection.selectAll();
+      break;
+
+    case "update":
+      id = readlineSync.question("Digite o id do documento: \n");
+      titulo = readlineSync.question("Digite o titulo a ser atualizado: \n");
+      template = readlineSync.question(
+        "Digite o template a ser atualizado: \n"
+      );
+
+      await connection.update(id, { titulo, template });
+      break;
+    case "delete":
+      id = readlineSync.question("Digite o id do documento: \n");
+
+      await connection.delete(id);
+      break;
+    default:
+      return false;
   }
 }
 
-(async () => {
-//   await insert({
-//     titulo: "teste",
-//     template: "testeteste",
-//   });
-  const result = await select("5cb476a5-6412-4764-99e6-d218a3ff9b9a");
-  console.log(result);
-})();
+let isDBValid = false;
+
+async function start() {
+  while (!isDBValid) {
+    let db = readlineSync.question(
+      "Digite o tipo de banco de dados a ser utilizado: \nmongodb\nredis\ncouchbase\n"
+    );
+    isDBValid = validateDB(db);
+
+    if (isDBValid) {
+      let operacao = readlineSync.question(
+        "Digite o tipo de operação a ser utilizado: \nselect\nselectAll\ninsert\nupdate\ndelete\n"
+      );
+
+      if(operacao) {
+        await callOperation(db, operacao);
+      }
+    } else {
+      console.log("banco de dados inválido por favor digite outro:\n");
+    }
+  }
+}
+
+start();
