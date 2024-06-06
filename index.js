@@ -6,6 +6,8 @@ function validateDB(db) {
   switch (db) {
     case "mongodb":
       return true;
+    case "redis":
+      return true;
     default:
       return false;
   }
